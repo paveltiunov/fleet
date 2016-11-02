@@ -386,6 +386,32 @@ func TestAbleToRun(t *testing.T) {
 			job:  newTestJobWithXFleetValues(t, "Conflicts=ping.service"),
 			want: false,
 		},
+
+		// no conflicts found
+		{
+			dState: &AgentState{
+				MState: &machine.MachineState{ID: "123"},
+				Units: map[string]*job.Unit{
+					"ping@1.service": &job.Unit{Name: "ping@1.service"},
+					"ping@2.service": &job.Unit{Name: "ping@2.service"},
+				},
+			},
+			job:  newTestJobWithXFleetValues(t, "MaxInstanceConflicts=ping@*.service\nMaxInstancesPerMachine=3"),
+			want: true,
+		},
+
+		// conflicts found
+		{
+			dState: &AgentState{
+				MState: &machine.MachineState{ID: "123"},
+				Units: map[string]*job.Unit{
+					"ping@1.service": &job.Unit{Name: "ping@1.service"},
+					"ping@2.service": &job.Unit{Name: "ping@2.service"},
+				},
+			},
+			job:  newTestJobWithXFleetValues(t, "MaxInstanceConflicts=ping@*.service\nMaxInstancesPerMachine=2"),
+			want: false,
+		},
 	}
 
 	for i, tt := range tests {

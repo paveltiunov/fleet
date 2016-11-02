@@ -17,6 +17,7 @@ package job
 import (
 	"fmt"
 	"strings"
+	"strconv"
 
 	"github.com/coreos/fleet/pkg"
 	"github.com/coreos/fleet/unit"
@@ -42,6 +43,8 @@ const (
 	fleetMachineOf = "MachineOf"
 	// Prevent a unit from being collocated with other units using glob-matching on the other unit names.
 	fleetConflicts = "Conflicts"
+	fleetMaxInstanceConflicts = "MaxInstanceConflicts"
+  fleetMaxInstances = "MaxInstancesPerMachine"
 	// Machine metadata key in the unit file
 	fleetMachineMetadata = "MachineMetadata"
 	// Require that the unit be scheduled on every machine in the cluster
@@ -63,6 +66,8 @@ var validRequirements = pkg.NewUnsafeSet(
 	deprecatedXConditionPrefix+fleetMachineMetadata,
 	fleetMachineMetadata,
 	fleetGlobal,
+	fleetMaxInstanceConflicts,
+	fleetMaxInstances,
 )
 
 func ParseJobState(s string) (JobState, error) {
@@ -138,6 +143,23 @@ func (u *Unit) Conflicts() []string {
 	return j.Conflicts()
 }
 
+func (u *Unit) MaxInstanceConflicts() []string {
+	j := &Job{
+		Name: u.Name,
+		Unit: u.Unit,
+	}
+	return j.MaxInstanceConflicts()
+}
+
+func (u *Unit) MaxInstancesPerMachine() int {
+	j := &Job{
+		Name: u.Name,
+		Unit: u.Unit,
+	}
+	return j.MaxInstancesPerMachine()
+}
+
+
 func (u *Unit) Peers() []string {
 	j := &Job{
 		Name: u.Name,
@@ -204,6 +226,26 @@ func (j *Job) Conflicts() []string {
 	conflicts = append(conflicts, j.requirements()[deprecatedXPrefix+fleetConflicts]...)
 	conflicts = append(conflicts, j.requirements()[fleetConflicts]...)
 	return conflicts
+}
+
+func (j *Job) MaxInstanceConflicts() []string {
+	conflicts := make([]string, 0)
+	conflicts = append(conflicts, j.requirements()[fleetMaxInstanceConflicts]...)
+	return conflicts
+}
+
+func (j *Job) MaxInstancesPerMachine() int {
+	requirements := j.requirements()
+
+	var max []string
+	var ok bool
+	max, ok = requirements[fleetMaxInstances]
+	if ok && len(max) != 0 {
+		i, _ := strconv.Atoi(max[0])
+		return i;
+	}
+
+	return -1
 }
 
 // Peers returns a list of Job names that must be scheduled to the same

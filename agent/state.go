@@ -66,6 +66,31 @@ func (as *AgentState) hasConflict(pUnitName string, pConflicts []string) (found 
 	return
 }
 
+func (as *AgentState) hasMaxInstanceConflict(pUnitName string, pConflicts []string, maxInstances int) bool {
+	if maxInstances <= 0 {
+		return false
+	}
+  instanceCount := 0
+	for _, eUnit := range as.Units {
+		if pUnitName == eUnit.Name {
+			fmt.Printf("!!! Found itself\n") //TODO
+			continue
+		}
+
+		for _, pConflict := range pConflicts {
+			fmt.Printf("!!! Trying to match: %s\n", pConflict) //TODO
+			if globMatches(pConflict, eUnit.Name) {
+				fmt.Printf("!!! Matched: %s\n", pConflict) //TODO
+				instanceCount++
+				break
+			}
+		}
+	}
+
+  fmt.Printf("!!! Instance count: %d > %d\n", instanceCount, maxInstances) //TODO
+	return instanceCount >= maxInstances
+}
+
 func globMatches(pattern, target string) bool {
 	matched, err := path.Match(pattern, target)
 	if err != nil {
@@ -104,6 +129,10 @@ func (as *AgentState) AbleToRun(j *job.Job) (bool, string) {
 
 	if cExists, cJobName := as.hasConflict(j.Name, j.Conflicts()); cExists {
 		return false, fmt.Sprintf("found conflict with locally-scheduled Unit(%s)", cJobName)
+	}
+
+	if cExists := as.hasMaxInstanceConflict(j.Name, j.MaxInstanceConflicts(), j.MaxInstancesPerMachine()); cExists {
+		return false, fmt.Sprintf("max instances exceeded (%d)", j.MaxInstancesPerMachine())
 	}
 
 	return true, ""
