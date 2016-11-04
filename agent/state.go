@@ -73,21 +73,17 @@ func (as *AgentState) hasMaxInstanceConflict(pUnitName string, pConflicts []stri
   instanceCount := 0
 	for _, eUnit := range as.Units {
 		if pUnitName == eUnit.Name {
-			fmt.Printf("!!! Found itself\n") //TODO
 			continue
 		}
 
 		for _, pConflict := range pConflicts {
-			fmt.Printf("!!! Trying to match: %s\n", pConflict) //TODO
 			if globMatches(pConflict, eUnit.Name) {
-				fmt.Printf("!!! Matched: %s\n", pConflict) //TODO
 				instanceCount++
 				break
 			}
 		}
 	}
 
-  fmt.Printf("!!! Instance count: %d > %d\n", instanceCount, maxInstances) //TODO
 	return instanceCount >= maxInstances
 }
 
