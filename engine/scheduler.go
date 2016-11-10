@@ -28,6 +28,7 @@ type decision struct {
 
 type Scheduler interface {
 	Decide(*clusterState, *job.Job) (*decision, error)
+	IsMachineBalanced(*clusterState, string) bool
 }
 
 type leastLoadedScheduler struct{}
@@ -73,6 +74,22 @@ func (lls *leastLoadedScheduler) sortedAgents(clust *clusterState) []*agent.Agen
 	sort.Sort(sas)
 
 	return []*agent.AgentState(sas)
+}
+
+func (lls *leastLoadedScheduler) IsMachineBalanced(clust *clusterState, machineID string) bool {
+	sortedAgents := lls.sortedAgents(clust)
+
+	if len(clust.agents()[machineID].Units) - len(sortedAgents[0].Units) < 3 {
+		return true
+	}
+
+	for i, a := range sortedAgents {
+		if a.MState.ID == machineID && i >= len(sortedAgents)/2 {
+			return false
+		}
+	}
+
+	return true
 }
 
 type sortableAgentStates []*agent.AgentState

@@ -49,6 +49,7 @@ const (
 	fleetMachineMetadata = "MachineMetadata"
 	// Require that the unit be scheduled on every machine in the cluster
 	fleetGlobal = "Global"
+	fleetCanBalance = "CanBalance"
 
 	deprecatedXPrefix          = "X-"
 	deprecatedXConditionPrefix = "X-Condition"
@@ -68,6 +69,7 @@ var validRequirements = pkg.NewUnsafeSet(
 	fleetGlobal,
 	fleetMaxInstanceConflicts,
 	fleetMaxInstances,
+	fleetCanBalance,
 )
 
 func ParseJobState(s string) (JobState, error) {
@@ -246,6 +248,16 @@ func (j *Job) MaxInstancesPerMachine() int {
 	}
 
 	return -1
+}
+
+func (j *Job) CanBalance() bool {
+	values := j.requirements()[fleetCanBalance]
+	if len(values) == 0 {
+		return false
+	}
+	// Last value found wins
+	last := values[len(values)-1]
+	return strings.ToLower(last) == "true"
 }
 
 // Peers returns a list of Job names that must be scheduled to the same

@@ -20,7 +20,16 @@ import (
 
 	"github.com/coreos/fleet/job"
 	"github.com/coreos/fleet/machine"
+	"github.com/coreos/fleet/unit"
 )
+
+func newUF(t *testing.T, contents string) unit.UnitFile {
+	uf, err := unit.NewUnitFile(contents)
+	if err != nil {
+		t.Fatalf("error creating new unit file from %v: %v", contents, err)
+	}
+	return *uf
+}
 
 func TestCalculateClusterTasks(t *testing.T) {
 	jsInactive := job.JobStateInactive
@@ -92,6 +101,153 @@ func TestCalculateClusterTasks(t *testing.T) {
 					JobName:   "foo.service",
 					MachineID: "XXX",
 				},
+			},
+		},
+
+		// reschedule if unbalanced
+		{
+			clust: newClusterState(
+				[]job.Unit{
+					job.Unit{
+						Name:        "foo.service",
+						TargetState: job.JobStateLaunched,
+					},
+					job.Unit{
+						Name:        "bar.service",
+						TargetState: job.JobStateLaunched,
+					},
+					job.Unit{
+						Name:        "foobar.service",
+						TargetState: job.JobStateLaunched,
+						Unit: newUF(t, "[X-Fleet]\nCanBalance=true"),
+					},
+				},
+				[]job.ScheduledUnit{
+					job.ScheduledUnit{
+						Name:            "foo.service",
+						State:           &jsLaunched,
+						TargetMachineID: "X1",
+					},
+					job.ScheduledUnit{
+						Name:            "bar.service",
+						State:           &jsLaunched,
+						TargetMachineID: "X1",
+					},
+					job.ScheduledUnit{
+						Name:            "foobar.service",
+						State:           &jsLaunched,
+						TargetMachineID: "X1",
+					},
+				},
+				[]machine.MachineState{
+					machine.MachineState{ID: "X1"},
+					machine.MachineState{ID: "X2"},
+					machine.MachineState{ID: "X3"},
+				},
+			),
+			tasks: []*task{
+				&task{
+					Type:      taskTypeUnscheduleUnit,
+					Reason:    "target Machine(X1) is unbalanced",
+					JobName:   "foobar.service",
+					MachineID: "X1",
+				},
+				&task{
+					Type:      taskTypeAttemptScheduleUnit,
+					Reason:    "target state launched and unit not scheduled",
+					JobName:   "foobar.service",
+					MachineID: "X2",
+				},
+			},
+		},
+
+		// do nothing is unbalance is not enough
+		{
+			clust: newClusterState(
+				[]job.Unit{
+					job.Unit{
+						Name:        "foo.service",
+						TargetState: job.JobStateLaunched,
+					},
+					job.Unit{
+						Name:        "foobar.service",
+						TargetState: job.JobStateLaunched,
+						Unit: newUF(t, "[X-Fleet]\nCanBalance=true"),
+					},
+				},
+				[]job.ScheduledUnit{
+					job.ScheduledUnit{
+						Name:            "foo.service",
+						State:           &jsLaunched,
+						TargetMachineID: "X1",
+					},
+					job.ScheduledUnit{
+						Name:            "foobar.service",
+						State:           &jsLaunched,
+						TargetMachineID: "X1",
+					},
+				},
+				[]machine.MachineState{
+					machine.MachineState{ID: "X1"},
+					machine.MachineState{ID: "X2"},
+					machine.MachineState{ID: "X3"},
+				},
+			),
+			tasks: []*task{
+			},
+		},
+
+		// do nothing if balanced
+		{
+			clust: newClusterState(
+				[]job.Unit{
+					job.Unit{
+						Name:        "foo.service",
+						TargetState: job.JobStateLaunched,
+					},
+					job.Unit{
+						Name:        "bar.service",
+						TargetState: job.JobStateLaunched,
+					},
+					job.Unit{
+						Name:        "bar1.service",
+						TargetState: job.JobStateLaunched,
+					},
+					job.Unit{
+						Name:        "foobar.service",
+						TargetState: job.JobStateLaunched,
+						Unit: newUF(t, "[X-Fleet]\nCanBalance=true"),
+					},
+				},
+				[]job.ScheduledUnit{
+					job.ScheduledUnit{
+						Name:            "foo.service",
+						State:           &jsLaunched,
+						TargetMachineID: "X1",
+					},
+					job.ScheduledUnit{
+						Name:            "bar.service",
+						State:           &jsLaunched,
+						TargetMachineID: "X1",
+					},
+					job.ScheduledUnit{
+						Name:            "bar1.service",
+						State:           &jsLaunched,
+						TargetMachineID: "X1",
+					},
+					job.ScheduledUnit{
+						Name:            "foobar.service",
+						State:           &jsLaunched,
+						TargetMachineID: "X3",
+					},
+				},
+				[]machine.MachineState{
+					machine.MachineState{ID: "X1"},
+					machine.MachineState{ID: "X2"},
+					machine.MachineState{ID: "X3"},
+				},
+			),
+			tasks: []*task{
 			},
 		},
 

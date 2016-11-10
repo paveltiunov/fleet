@@ -109,6 +109,12 @@ func (r *Reconciler) calculateClusterTasks(clust *clusterState, stopchan chan st
 					return
 				}
 
+				if j.CanBalance() && !r.sched.IsMachineBalanced(clust, j.TargetMachineID) {
+					unschedule = true
+					reason = fmt.Sprintf("target Machine(%s) is unbalanced", j.TargetMachineID)
+					return
+				}
+
 				return
 			}
 
